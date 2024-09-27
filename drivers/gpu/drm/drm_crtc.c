@@ -96,6 +96,7 @@ struct drm_crtc *drm_crtc_from_index(struct drm_device *dev, int idx)
 }
 EXPORT_SYMBOL(drm_crtc_from_index);
 
+/// legacy api
 int drm_crtc_force_disable(struct drm_crtc *crtc)
 {
 	struct drm_mode_set set = {
@@ -248,6 +249,7 @@ static int __drm_crtc_init_with_planes(struct drm_device *dev, struct drm_crtc *
 	if (WARN_ON(config->num_crtc >= 32))
 		return -EINVAL;
 
+	/// atomic的driver必须要提供atomic_destroy_state和atomic_duplicate_state回调
 	WARN_ON(drm_drv_uses_atomic_modeset(dev) &&
 		(!funcs->atomic_destroy_state ||
 		 !funcs->atomic_duplicate_state));
@@ -440,6 +442,7 @@ int drmm_crtc_init_with_planes(struct drm_device *dev, struct drm_crtc *crtc,
 }
 EXPORT_SYMBOL(drmm_crtc_init_with_planes);
 
+/// 相比于上面的init函数，还多做了alloc的工作
 void *__drmm_crtc_alloc_with_planes(struct drm_device *dev,
 				    size_t size, size_t offset,
 				    struct drm_plane *primary,
@@ -480,6 +483,7 @@ EXPORT_SYMBOL(__drmm_crtc_alloc_with_planes);
  * core. Note that the function does *not* free the crtc structure itself,
  * this is the responsibility of the caller.
  */
+/// drm_crtc_funcs .destory回调设置为该函数
 void drm_crtc_cleanup(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
@@ -523,6 +527,7 @@ EXPORT_SYMBOL(drm_crtc_cleanup);
  * Returns:
  * Zero on success, negative errno on failure.
  */
+/// legacy api, ioctl DRM_IOCTL_MODE_GETCRTC->drm_mode_getcrtc
 int drm_mode_getcrtc(struct drm_device *dev,
 		     void *data, struct drm_file *file_priv)
 {
@@ -582,6 +587,7 @@ int drm_mode_getcrtc(struct drm_device *dev,
 	return 0;
 }
 
+/// legacy api，ioctl DRM_IOCTL_MODE_SETCRTC->drm_mode_setcrtc，在crtc->funcs->set_config没实现的情况下会调用到
 static int __drm_mode_set_config_internal(struct drm_mode_set *set,
 					  struct drm_modeset_acquire_ctx *ctx)
 {
@@ -639,6 +645,7 @@ static int __drm_mode_set_config_internal(struct drm_mode_set *set,
  * Returns:
  * Zero on success, negative errno on failure.
  */
+/// legacy api
 int drm_mode_set_config_internal(struct drm_mode_set *set)
 {
 	WARN_ON(drm_drv_uses_atomic_modeset(set->crtc->dev));
@@ -656,6 +663,7 @@ EXPORT_SYMBOL(drm_mode_set_config_internal);
  * @mode: mode that framebuffer will be displayed under
  * @fb: framebuffer to check size of
  */
+/// legacy api
 int drm_crtc_check_viewport(const struct drm_crtc *crtc,
 			    int x, int y,
 			    const struct drm_display_mode *mode,
@@ -689,6 +697,7 @@ EXPORT_SYMBOL(drm_crtc_check_viewport);
  * Returns:
  * Zero on success, negative errno on failure.
  */
+/// legacy ioctl api
 int drm_mode_setcrtc(struct drm_device *dev, void *data,
 		     struct drm_file *file_priv)
 {
@@ -894,6 +903,7 @@ out:
 	return ret;
 }
 
+/// legacy api
 int drm_mode_crtc_set_obj_prop(struct drm_mode_object *obj,
 			       struct drm_property *property,
 			       uint64_t value)
@@ -923,6 +933,7 @@ int drm_mode_crtc_set_obj_prop(struct drm_mode_object *obj,
  * RETURNS:
  * Zero for success or -errno
  */
+/// 只有intel_crtc.c中用到了这个函数，scaling_filter
 int drm_crtc_create_scaling_filter_property(struct drm_crtc *crtc,
 					    unsigned int supported_filters)
 {

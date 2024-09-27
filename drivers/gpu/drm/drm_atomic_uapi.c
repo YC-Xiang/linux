@@ -674,6 +674,7 @@ static int drm_atomic_connector_set_property(struct drm_connector *connector,
 	bool replaced = false;
 	int ret;
 
+	/// 如果property是"CRTC_ID"，那么property的value是crtc的id
 	if (property == config->prop_crtc_id) {
 		struct drm_crtc *crtc = drm_crtc_find(dev, file_priv, val);
 
@@ -778,7 +779,7 @@ static int drm_atomic_connector_set_property(struct drm_connector *connector,
 		state->privacy_screen_sw_state = val;
 	} else if (property == connector->broadcast_rgb_property) {
 		state->hdmi.broadcast_rgb = val;
-	} else if (connector->funcs->atomic_set_property) {
+	} else if (connector->funcs->atomic_set_property) { /// 自定义的接口，设置私有property
 		return connector->funcs->atomic_set_property(connector,
 				state, property, val);
 	} else {
@@ -1012,6 +1013,7 @@ int drm_atomic_set_property(struct drm_atomic_state *state,
 	u64 old_val;
 	int ret;
 
+	/// 检查传入的property是否合法
 	if (!drm_property_change_valid_get(prop, prop_value, &ref))
 		return -EINVAL;
 
@@ -1020,6 +1022,7 @@ int drm_atomic_set_property(struct drm_atomic_state *state,
 		struct drm_connector *connector = obj_to_connector(obj);
 		struct drm_connector_state *connector_state;
 
+		/// connector_state即是drm_atomic_state->connector_state中的new state
 		connector_state = drm_atomic_get_connector_state(state, connector);
 		if (IS_ERR(connector_state)) {
 			ret = PTR_ERR(connector_state);
@@ -1033,11 +1036,13 @@ int drm_atomic_set_property(struct drm_atomic_state *state,
 			break;
 		}
 
+		/// 根据properties更新drm_atomic_state->connector_state中的new state
 		ret = drm_atomic_connector_set_property(connector,
 				connector_state, file_priv,
 				prop, prop_value);
 		break;
 	}
+	/// crtc, plane也是和connector类似
 	case DRM_MODE_OBJECT_CRTC: {
 		struct drm_crtc *crtc = obj_to_crtc(obj);
 		struct drm_crtc_state *crtc_state;
@@ -1195,6 +1200,8 @@ static int prepare_signaling(struct drm_device *dev,
 		if (arg->flags & DRM_MODE_PAGE_FLIP_EVENT || fence_ptr) {
 			struct drm_pending_vblank_event *e;
 
+			/// 如果userspace atomic commit带了DRM_MODE_PAGE_FLIP_EVENT flag，那么需要创建event
+			/// 返回的event type为DRM_EVENT_FLIP_COMPLETE
 			e = create_vblank_event(crtc, arg->user_data);
 			if (!e)
 				return -ENOMEM;
@@ -1404,7 +1411,7 @@ int drm_mode_atomic_ioctl(struct drm_device *dev,
 				       "commit failed: DRM_MODE_PAGE_FLIP_ASYNC not supported\n");
 			return -EINVAL;
 		}
-
+		/// 允许不垂直同步，不用等待vblank
 		async_flip = true;
 	}
 
@@ -1416,10 +1423,12 @@ int drm_mode_atomic_ioctl(struct drm_device *dev,
 		return -EINVAL;
 	}
 
+	/// 分配drm_atomic_state
 	state = drm_atomic_state_alloc(dev);
 	if (!state)
 		return -ENOMEM;
 
+	/// 初始化drm_modeset_acquire_ctx
 	drm_modeset_acquire_init(&ctx, DRM_MODESET_ACQUIRE_INTERRUPTIBLE);
 	state->acquire_ctx = &ctx;
 	state->allow_modeset = !!(arg->flags & DRM_MODE_ATOMIC_ALLOW_MODESET);
@@ -1434,6 +1443,7 @@ retry:
 		uint32_t obj_id, count_props;
 		struct drm_mode_object *obj;
 
+		/// 获取object id，objs_ptr数组中保存的是object id
 		if (get_user(obj_id, objs_ptr + copied_objs)) {
 			ret = -EFAULT;
 			goto out;
@@ -1453,6 +1463,7 @@ retry:
 			goto out;
 		}
 
+		/// 获取该object有多少个properties
 		if (get_user(count_props, count_props_ptr + copied_objs)) {
 			drm_mode_object_put(obj);
 			ret = -EFAULT;
@@ -1461,17 +1472,20 @@ retry:
 
 		copied_objs++;
 
+		/// 遍历所有objects
 		for (j = 0; j < count_props; j++) {
 			uint32_t prop_id;
 			uint64_t prop_value;
 			struct drm_property *prop;
 
+			/// 获取property id
 			if (get_user(prop_id, props_ptr + copied_props)) {
 				drm_mode_object_put(obj);
 				ret = -EFAULT;
 				goto out;
 			}
 
+			/// 根据property id找到对应的drm_property
 			prop = drm_mode_obj_find_prop_id(obj, prop_id);
 			if (!prop) {
 				drm_dbg_atomic(dev,
@@ -1482,6 +1496,7 @@ retry:
 				goto out;
 			}
 
+			/// 拷贝要赋值给drm_property的value
 			if (copy_from_user(&prop_value,
 					   prop_values_ptr + copied_props,
 					   sizeof(prop_value))) {
@@ -1490,6 +1505,7 @@ retry:
 				goto out;
 			}
 
+			/// 设置好所有drm_xxx_state的property状态
 			ret = drm_atomic_set_property(state, file_priv, obj,
 						      prop, prop_value, async_flip);
 			if (ret) {

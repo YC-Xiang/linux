@@ -259,6 +259,8 @@ static void drm_reset_vblank_timestamp(struct drm_device *dev, unsigned int pipe
 	 * available and didn't fail. Otherwise reinitialize delayed at next vblank
 	 * interrupt and assign 0 for now, to mark the vblanktimestamp as invalid.
 	 */
+	/// 如果实现了crtc->funcs->get_vblank_timestamp，那么rc是true，不会设置t_vblank=0
+	/// 如果没实现，那么使用的是ktime_get(),先设置t_vblank为0
 	if (!rc)
 		t_vblank = 0;
 
@@ -1195,6 +1197,7 @@ static int drm_vblank_enable(struct drm_device *dev, unsigned int pipe)
 	return ret;
 }
 
+// vblank->refcount++, 如果refcount从0到1，那么还需要enable vblank
 int drm_vblank_get(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_vblank_crtc *vblank = drm_vblank_crtc(dev, pipe);
@@ -1209,6 +1212,7 @@ int drm_vblank_get(struct drm_device *dev, unsigned int pipe)
 
 	spin_lock_irqsave(&dev->vbl_lock, irqflags);
 	/* Going from 0->1 means we have to enable interrupts again */
+	/// ???这边会走else? drm_crtc_vblank_off中执行了atomic_inc(&vblank->refcount)
 	if (atomic_add_return(1, &vblank->refcount) == 1) {
 		ret = drm_vblank_enable(dev, pipe);
 	} else {
@@ -1850,6 +1854,7 @@ static void drm_handle_vblank_events(struct drm_device *dev, unsigned int pipe)
 
 	seq = drm_vblank_count_and_time(dev, pipe, &now);
 
+	/// drm_crtc_arm_vblank_event中把vblank事件加入vblank_event_list
 	list_for_each_entry_safe(e, t, &dev->vblank_event_list, base.link) {
 		if (e->pipe != pipe)
 			continue;
@@ -2125,4 +2130,3 @@ err_free:
 	kfree(e);
 	return ret;
 }
-

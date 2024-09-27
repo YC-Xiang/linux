@@ -3108,12 +3108,15 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 
 	memset(&u_mode, 0, sizeof(struct drm_mode_modeinfo));
 
+	/// 根据传入的connect_id查找drm_connector
 	connector = drm_connector_lookup(dev, file_priv, out_resp->connector_id);
 	if (!connector)
 		return -ENOENT;
 
+	/// hweight32计算possible_encoders中有多少个位为1
 	encoders_count = hweight32(connector->possible_encoders);
 
+	/// count_encoders和encoders_count一开始都为0，不会进这里
 	if ((out_resp->count_encoders >= encoders_count) && encoders_count) {
 		copied = 0;
 		encoder_ptr = (uint32_t __user *)(unsigned long)(out_resp->encoders_ptr);
@@ -3129,13 +3132,13 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 	out_resp->count_encoders = encoders_count;
 
 	out_resp->connector_id = connector->base.id;
-	out_resp->connector_type = connector->connector_type;
+	out_resp->connector_type = connector->connector_type; // DRM_MODE_CONNECTOR_XXX
 	out_resp->connector_type_id = connector->connector_type_id;
 
 	is_current_master = drm_is_current_master(file_priv);
 
 	mutex_lock(&dev->mode_config.mutex);
-	if (out_resp->count_modes == 0) {
+	if (out_resp->count_modes == 0) { /// drmModeGetConnector会走到这里
 		if (is_current_master)
 			connector->funcs->fill_modes(connector,
 						     dev->mode_config.max_width,
@@ -3145,7 +3148,7 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 				    connector->base.id, connector->name);
 	}
 
-	out_resp->mm_width = connector->display_info.width_mm;
+	out_resp->mm_width = connector->display_info.width_mm; // 物理长度
 	out_resp->mm_height = connector->display_info.height_mm;
 	out_resp->subpixel = connector->display_info.subpixel_order;
 	out_resp->connection = connector->status;

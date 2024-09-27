@@ -74,11 +74,14 @@ drm_gem_fb_init(struct drm_device *dev,
 	unsigned int i;
 	int ret;
 
+	/// 根据userspace传入的mode_cmd，填充fb结构体
 	drm_helper_mode_fill_fb_struct(dev, fb, mode_cmd);
 
+	/// 每个fb都分配一个gem_object
 	for (i = 0; i < num_planes; i++)
 		fb->obj[i] = obj[i];
 
+	/// 填充fb->funcs和drm_mode_object
 	ret = drm_framebuffer_init(dev, fb, funcs);
 	if (ret)
 		drm_err(dev, "Failed to init framebuffer: %d\n", ret);
@@ -164,7 +167,7 @@ int drm_gem_fb_init_with_funcs(struct drm_device *dev,
 		drm_dbg_kms(dev, "Failed to get FB format info\n");
 		return -EINVAL;
 	}
-
+	// 检查plane是否支持传入的pixel_format和modifier
 	if (drm_drv_uses_atomic_modeset(dev) &&
 	    !drm_any_plane_has_format(dev, mode_cmd->pixel_format,
 				      mode_cmd->modifier[0])) {
@@ -178,6 +181,7 @@ int drm_gem_fb_init_with_funcs(struct drm_device *dev,
 		unsigned int height = mode_cmd->height / (i ? info->vsub : 1);
 		unsigned int min_size;
 
+		/// 根据传入的GEM handler返回gem_object
 		objs[i] = drm_gem_object_lookup(file, mode_cmd->handles[i]);
 		if (!objs[i]) {
 			drm_dbg_kms(dev, "Failed to lookup GEM object\n");
@@ -185,10 +189,11 @@ int drm_gem_fb_init_with_funcs(struct drm_device *dev,
 			goto err_gem_object_put;
 		}
 
-		min_size = (height - 1) * mode_cmd->pitches[i]
-			 + drm_format_info_min_pitch(info, i, width)
-			 + mode_cmd->offsets[i];
+		min_size = (height - 1) * mode_cmd->pitches[i] +
+			   drm_format_info_min_pitch(info, i, width) +
+			   mode_cmd->offsets[i];
 
+		/// 这里判断之前分配的GEM size是否够
 		if (objs[i]->size < min_size) {
 			drm_dbg_kms(dev,
 				    "GEM object size (%zu) smaller than minimum size (%u) for plane %d\n",

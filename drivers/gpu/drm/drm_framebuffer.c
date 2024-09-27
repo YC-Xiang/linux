@@ -274,11 +274,13 @@ drm_internal_framebuffer_create(struct drm_device *dev,
 	struct drm_framebuffer *fb;
 	int ret;
 
+	/// 只支持这两个flag
 	if (r->flags & ~(DRM_MODE_FB_INTERLACED | DRM_MODE_FB_MODIFIERS)) {
 		drm_dbg_kms(dev, "bad framebuffer flags 0x%08x\n", r->flags);
 		return ERR_PTR(-EINVAL);
 	}
 
+	/// width, height要在范围之内
 	if ((config->min_width > r->width) || (r->width > config->max_width)) {
 		drm_dbg_kms(dev, "bad framebuffer width %d, should be >= %d && <= %d\n",
 			    r->width, config->min_width, config->max_width);
@@ -290,16 +292,19 @@ drm_internal_framebuffer_create(struct drm_device *dev,
 		return ERR_PTR(-EINVAL);
 	}
 
+	/// 新的driver不要置起fb_modifiers_not_supported
 	if (r->flags & DRM_MODE_FB_MODIFIERS &&
 	    dev->mode_config.fb_modifiers_not_supported) {
 		drm_dbg_kms(dev, "driver does not support fb modifiers\n");
 		return ERR_PTR(-EINVAL);
 	}
 
+	/// 检查一系列参数
 	ret = framebuffer_check(dev, r);
 	if (ret)
 		return ERR_PTR(ret);
 
+	/// drm_mode_config_funcs的.fb_create回调
 	fb = dev->mode_config.funcs->fb_create(dev, file_priv, r);
 	if (IS_ERR(fb)) {
 		drm_dbg_kms(dev, "could not create framebuffer\n");
@@ -870,6 +875,7 @@ int drm_framebuffer_init(struct drm_device *dev, struct drm_framebuffer *fb,
 	fb->funcs = funcs;
 	strcpy(fb->comm, current->comm);
 
+	/// 创建drm_mode_object，分配free callback。
 	ret = __drm_mode_object_add(dev, &fb->base, DRM_MODE_OBJECT_FB,
 				    false, drm_framebuffer_free);
 	if (ret)

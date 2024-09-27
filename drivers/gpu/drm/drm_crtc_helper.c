@@ -379,6 +379,8 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 	/* Set up the DPLL and any encoders state that needs to adjust or depend
 	 * on the DPLL.
 	 */
+	/// 这种写法，在mode_set为NULL时不会触发错误，ret直接等于1
+	/// 如果ret = crtc_funcs->mode_set，如果mode_set为NULL则会触发错误
 	ret = !crtc_funcs->mode_set(crtc, mode, adjusted_mode, x, y, old_fb);
 	if (!ret)
 	    goto done;

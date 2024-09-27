@@ -935,11 +935,13 @@ bool drm_property_change_valid_get(struct drm_property *property,
 {
 	int i;
 
+	/// 如果是只读的property，不可修改
 	if (property->flags & DRM_MODE_PROP_IMMUTABLE)
 		return false;
 
 	*ref = NULL;
 
+	/// 如果是范围型property，那么value需要在范围内
 	if (drm_property_type_is(property, DRM_MODE_PROP_RANGE)) {
 		if (value < property->values[0] || value > property->values[1])
 			return false;
@@ -953,16 +955,16 @@ bool drm_property_change_valid_get(struct drm_property *property,
 		return true;
 	} else if (drm_property_type_is(property, DRM_MODE_PROP_BITMASK)) {
 		uint64_t valid_mask = 0;
-
+		/// 有效的bitmask
 		for (i = 0; i < property->num_values; i++)
 			valid_mask |= (1ULL << property->values[i]);
-		return !(value & ~valid_mask);
+		return !(value & ~valid_mask); /// 如果value在有效的bitmask之外，返回false
 	} else if (drm_property_type_is(property, DRM_MODE_PROP_BLOB)) {
 		struct drm_property_blob *blob;
 
 		if (value == 0)
 			return true;
-
+		/// blob property，那么传入的value就是blob id
 		blob = drm_property_lookup_blob(property->dev, value);
 		if (blob) {
 			*ref = &blob->base;
@@ -975,6 +977,7 @@ bool drm_property_change_valid_get(struct drm_property *property,
 		if (value == 0)
 			return true;
 
+		/// object property，对应FB_ID和CRTC_ID，那么传入的value就是property id
 		*ref = __drm_mode_object_find(property->dev, NULL, value,
 					      property->values[0]);
 		return *ref != NULL;

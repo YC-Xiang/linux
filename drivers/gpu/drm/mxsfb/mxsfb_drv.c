@@ -123,6 +123,7 @@ static int mxsfb_attach_bridge(struct mxsfb_drm_private *mxsfb)
 	struct drm_bridge *bridge;
 	int ret;
 
+	/// 在设备树中找到panel节点，对应panel-sitronix-st7789v.c driver
 	ret = drm_of_find_panel_or_bridge(drm->dev->of_node, 0, 0, &panel,
 					  &bridge);
 	if (ret)
@@ -352,11 +353,12 @@ static int mxsfb_probe(struct platform_device *pdev)
 	struct drm_device *drm;
 	int ret;
 
+	/// 用devm_drm_dev_alloc()代替
 	drm = drm_dev_alloc(&mxsfb_driver, &pdev->dev);
 	if (IS_ERR(drm))
 		return PTR_ERR(drm);
 
-	ret = mxsfb_load(drm, device_get_match_data(&pdev->dev));
+	ret = mxsfb_load(drm, device_get_match_data(&pdev->dev)); /// 获取of_device_id中对应的.data
 	if (ret)
 		goto err_free;
 

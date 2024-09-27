@@ -783,6 +783,7 @@ int drm_mode_getplane_res(struct drm_device *dev, void *data,
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EOPNOTSUPP;
 
+	/// 传给userspace plane_id 数组
 	plane_ptr = u64_to_user_ptr(plane_resp->plane_id_ptr);
 
 	/*

@@ -1082,9 +1082,10 @@ drm_atomic_get_connector_state(struct drm_atomic_state *state,
 
 	index = drm_connector_index(connector);
 
+	/// state->num_connector默认的是0，所以会跑进这里
 	if (index >= state->num_connector) {
 		struct __drm_connnectors_state *c;
-		int alloc = max(index + 1, config->num_connector);
+		int alloc = max(index + 1, config->num_connector); /// alloc变成1
 
 		c = krealloc_array(state->connectors, alloc,
 				   sizeof(*state->connectors), GFP_KERNEL);
@@ -1095,19 +1096,20 @@ drm_atomic_get_connector_state(struct drm_atomic_state *state,
 		memset(&state->connectors[state->num_connector], 0,
 		       sizeof(*state->connectors) * (alloc - state->num_connector));
 
-		state->num_connector = alloc;
+		state->num_connector = alloc; /// num_connector++
 	}
 
 	if (state->connectors[index].state)
 		return state->connectors[index].state;
 
+	/// 复制一份connector->state出来
 	connector_state = connector->funcs->atomic_duplicate_state(connector);
 	if (!connector_state)
 		return ERR_PTR(-ENOMEM);
 
 	drm_connector_get(connector);
 	state->connectors[index].state = connector_state;
-	state->connectors[index].old_state = connector->state;
+	state->connectors[index].old_state = connector->state; /// 此时old_state和new_state还是相同的
 	state->connectors[index].new_state = connector_state;
 	state->connectors[index].ptr = connector;
 	connector_state->state = state;

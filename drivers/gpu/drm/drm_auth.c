@@ -233,11 +233,12 @@ static int drm_new_set_master(struct drm_device *dev, struct drm_file *fpriv)
 static int
 drm_master_check_perm(struct drm_device *dev, struct drm_file *file_priv)
 {
+	/// 如果已经是master了直接返回0
 	if (file_priv->was_master &&
 	    rcu_access_pointer(file_priv->pid) == task_tgid(current))
 		return 0;
 
-	if (!capable(CAP_SYS_ADMIN))
+	if (!capable(CAP_SYS_ADMIN)) /// 如果该进程没有管理员权限那么会返回错误
 		return -EACCES;
 
 	return 0;

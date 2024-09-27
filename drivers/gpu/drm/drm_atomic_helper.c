@@ -301,6 +301,7 @@ update_connector_routing(struct drm_atomic_state *state,
 	drm_dbg_atomic(connector->dev, "Updating routing for [CONNECTOR:%d:%s]\n",
 		       connector->base.id, connector->name);
 
+	/// 如果connector换了对应的crtc，那么connectors_changed为true
 	if (old_connector_state->crtc != new_connector_state->crtc) {
 		if (old_connector_state->crtc) {
 			crtc_state = drm_atomic_get_new_crtc_state(state, old_connector_state->crtc);
@@ -313,6 +314,7 @@ update_connector_routing(struct drm_atomic_state *state,
 		}
 	}
 
+	/// 如果new_connector_state没有绑定crtc，那么绑定的encoder也设为NULL
 	if (!new_connector_state->crtc) {
 		drm_dbg_atomic(connector->dev, "Disabling [CONNECTOR:%d:%s]\n",
 				connector->base.id, connector->name);
@@ -637,12 +639,14 @@ drm_atomic_helper_check_modeset(struct drm_device *dev,
 
 		WARN_ON(!drm_modeset_is_locked(&crtc->mutex));
 
+		/// 如果两个state->mode有不一样的，那么mode_changed = true
 		if (!drm_mode_equal(&old_crtc_state->mode, &new_crtc_state->mode)) {
 			drm_dbg_atomic(dev, "[CRTC:%d:%s] mode changed\n",
 				       crtc->base.id, crtc->name);
 			new_crtc_state->mode_changed = true;
 		}
 
+		/// 如果两个state->enable有不一样的，mode_changed = true
 		if (old_crtc_state->enable != new_crtc_state->enable) {
 			drm_dbg_atomic(dev, "[CRTC:%d:%s] enable changed\n",
 				       crtc->base.id, crtc->name);
@@ -659,6 +663,7 @@ drm_atomic_helper_check_modeset(struct drm_device *dev,
 			new_crtc_state->connectors_changed = true;
 		}
 
+		/// 如果两个state->active有不一样的，active_changed = true
 		if (old_crtc_state->active != new_crtc_state->active) {
 			drm_dbg_atomic(dev, "[CRTC:%d:%s] active changed\n",
 				       crtc->base.id, crtc->name);
@@ -1071,6 +1076,7 @@ int drm_atomic_helper_check(struct drm_device *dev,
 	if (ret)
 		return ret;
 
+	/// ??? zpos? 一些底层driver init时置起的flag，暂时没用上
 	if (dev->mode_config.normalize_zpos) {
 		ret = drm_atomic_normalize_zpos(dev, state);
 		if (ret)
@@ -1081,6 +1087,7 @@ int drm_atomic_helper_check(struct drm_device *dev,
 	if (ret)
 		return ret;
 
+	/// legacy field, 最新的driver都不会置起
 	if (state->legacy_cursor_update)
 		state->async_update = !drm_atomic_helper_async_check(dev, state);
 
@@ -1674,6 +1681,7 @@ drm_atomic_helper_wait_for_vblanks(struct drm_device *dev,
 		if (!(crtc_mask & drm_crtc_mask(crtc)))
 			continue;
 
+		/// 阻塞最多等100ms, 等待vblank数量不等，即vblank有新增。在vblank中断来的时候会调用drm_update_vblank_count来更新计数
 		ret = wait_event_timeout(dev->vblank[i].queue,
 				old_state->crtcs[i].last_vblank_count !=
 					drm_crtc_vblank_count(crtc),
@@ -2020,6 +2028,7 @@ int drm_atomic_helper_commit(struct drm_device *dev,
 		return 0;
 	}
 
+	/// nonblock commit support
 	ret = drm_atomic_helper_setup_commit(state, nonblock);
 	if (ret)
 		return ret;
@@ -2042,6 +2051,7 @@ int drm_atomic_helper_commit(struct drm_device *dev,
 	 * the software side now.
 	 */
 
+	/// ??? 这里阻塞等待hw_done，但drm_atomic_helper_commit_hw_done在后面，这怎么完成的？
 	ret = drm_atomic_helper_swap_state(state, true);
 	if (ret)
 		goto err;
@@ -2294,6 +2304,7 @@ int drm_atomic_helper_setup_commit(struct drm_atomic_state *state,
 
 		new_crtc_state->commit = commit;
 
+		/// ??? 这边干嘛没看懂
 		ret = stall_checks(crtc, nonblock);
 		if (ret)
 			return ret;
@@ -2460,6 +2471,8 @@ void drm_atomic_helper_fake_vblank(struct drm_atomic_state *old_state)
 	for_each_new_crtc_in_state(old_state, crtc, new_crtc_state, i) {
 		unsigned long flags;
 
+		/// 没有drm_vblank_init的driver，dev->num_crtcs=0, no_vblank=1
+		/// 进行过drm_vblank_init的driver会直接跳过该函数
 		if (!new_crtc_state->no_vblank)
 			continue;
 

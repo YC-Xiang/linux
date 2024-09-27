@@ -109,17 +109,21 @@ int drm_mode_getresources(struct drm_device *dev, void *data,
 	mutex_lock(&file_priv->fbs_lock);
 	count = 0;
 	fb_id = u64_to_user_ptr(card_res->fb_id_ptr);
+	/// 遍历fb链表
 	list_for_each_entry(fb, &file_priv->fbs, filp_head) {
 		if (count < card_res->count_fbs &&
-		    put_user(fb->base.id, fb_id + count)) {
+		    put_user(fb->base.id, fb_id + count)) { /// 这里通过put_user把fb->base.id赋值给userspace的fbs数组
 			mutex_unlock(&file_priv->fbs_lock);
 			return -EFAULT;
 		}
+		/// 计算出有多少个fb
 		count++;
 	}
+	/// 赋值给count_fbs
 	card_res->count_fbs = count;
 	mutex_unlock(&file_priv->fbs_lock);
 
+	/// 在driver load函数中赋值的max/min_height/width
 	card_res->max_height = dev->mode_config.max_height;
 	card_res->min_height = dev->mode_config.min_height;
 	card_res->max_width = dev->mode_config.max_width;

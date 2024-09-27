@@ -140,7 +140,9 @@ struct drm_mode_object *__drm_mode_object_find(struct drm_device *dev,
 	struct drm_mode_object *obj = NULL;
 
 	mutex_lock(&dev->mode_config.idr_mutex);
+	/// 根据传入的id，返回对应的object
 	obj = idr_find(&dev->mode_config.object_idr, id);
+	/// check obj的type和传入的type是否一致
 	if (obj && type != DRM_MODE_OBJECT_ANY && obj->type != type)
 		obj = NULL;
 	if (obj && obj->id != id)
@@ -151,7 +153,7 @@ struct drm_mode_object *__drm_mode_object_find(struct drm_device *dev,
 		drm_dbg_kms(dev, "[OBJECT:%d] not included in lease", id);
 		obj = NULL;
 	}
-
+	/// 如果free_cb存在，并且refcount等于0，返回NULL
 	if (obj && obj->free_cb) {
 		if (!kref_get_unless_zero(&obj->refcount))
 			obj = NULL;
@@ -395,6 +397,7 @@ int drm_mode_object_get_properties(struct drm_mode_object *obj, bool atomic,
 		struct drm_property *prop = obj->properties->properties[i];
 		uint64_t val;
 
+		/// atomic是上层传入的file_priv->atomic, 通过 userspace调用drmSetClientCap(fd, DRM_CLIENT_CAP_ATOMIC, 1)设置该属性
 		if ((prop->flags & DRM_MODE_PROP_ATOMIC) && !atomic)
 			continue;
 
